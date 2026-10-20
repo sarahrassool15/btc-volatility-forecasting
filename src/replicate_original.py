@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
 df = pd.read_csv("data/btcusdt_1m.csv", index_col="open_time", parse_dates=True)
 
@@ -49,7 +51,11 @@ def rolling_r2(target_col):
         y_train = feat[target_col].iloc[:end]
         X_test = feat[feature_cols].iloc[end:end + test_size]
         y_test = feat[target_col].iloc[end:end + test_size]
-        model = LinearRegression().fit(X_train, y_train)
+        # NOTE: my features are on wildly different scales (volume up to ~800,000, volatility ~0.001).
+        # Newer scikit-learn versions treat the tiny volatility column as numerically zero and
+        # drop it, which is why my first replication gave negative R^2. Standardising every
+        # feature (mean 0, std 1) first fixes it, and gives exactly the same linear model.
+        model = make_pipeline(StandardScaler(), LinearRegression()).fit(X_train, y_train)
         scores.append(r2_score(y_test, model.predict(X_test)))
         end += test_size
     return np.mean(scores)
